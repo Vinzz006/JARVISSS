@@ -1,56 +1,49 @@
-import os, secrets, datetime as dt
+import os
+import datetime as dt
+import jwt
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from livekit import api as lk_api  # official Python API
 
+# Load environment variables from .env
 load_dotenv()
 
-LIVEKIT_URL = os.getenv("LIVEKIT_URL")           # e.g. wss://YOUR_SUBDOMAIN.livekit.cloud
+LIVEKIT_URL = os.getenv("LIVEKIT_URL")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 
 app = Flask(__name__)
-CORS(app)  # allow your static site to call this server
-
-def require_env(var):
-    if not os.getenv(var):
-        raise RuntimeError(f"Missing required env var: {var}")
-    return os.getenv(var)
-
-# Sanity checks (fail fast on missing secrets)
-require_env("LIVEKIT_URL")
-require_env("LIVEKIT_API_KEY")
-require_env("LIVEKIT_API_SECRET")
+CORS(app)
 
 @app.get("/token")
 def get_token():
-    """
-    GET /token?room=jarvis&identity=alice&name=Alice
-    Returns: { token, wsUrl }
-    """
+    """Generate and return a LiveKit access token"""
     room = request.args.get("room", "jarvis")
-    identity = request.args.get("identity") or f"user-{secrets.token_hex(4)}"
-    name = request.args.get("name", identity)
+    identity = request.args.get("identity", "user-123")
 
-    # Build a token with video grants. TTL = 1 hour.
-    at = lk_api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
-    grants = lk_api.VideoGrants(
-        room=room,
-        room_join=True,
-        can_publish=True,
-        can_subscribe=True,
-        # set room_create=True if you want the first join to create the room
-    )
-    token = (
-        at.with_identity(identity)
-          .with_name(name)
-          .with_grants(grants)
-          .with_ttl(dt.timedelta(hours=1))
-          .to_jwt()
+    now = dt.datetime.utcnow()
+    exp = now + dt.timedelta(minutes=10)
+
+    token = jwt.encode(
+        {
+            "iss": LIVEKIT_API_KEY,
+            "sub": LIVEKIT_API_KEY,
+            "exp": exp,
+            "nbf": now,
+            "video": {"room": room, "roomCreate": True},
+        },
+        LIVEKIT_API_SECRET,
+        algorithm="HS256",
     )
 
-    return jsonify({"token": token, "wsUrl": LIVEKIT_URL, "room": room, "identity": identity})
+    return jsonify({
+        "token": token,
+        "wsUrl": LIVEKIT_URL,
+        "room": room,
+        "identity": identity
+    })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5050")), debug=True)
+    # Changed port to 5051
+    app.run(host="0.0.0.0", port=5051, debug=True)
+
