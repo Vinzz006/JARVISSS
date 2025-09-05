@@ -53,7 +53,8 @@ def get_token():
     return jsonify({"token": token, "wsUrl": LIVEKIT_URL, "room": room, "identity": identity})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5050")
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5050")))
+
 
 import streamlit as st
 import requests
