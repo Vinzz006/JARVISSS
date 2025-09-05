@@ -58,3 +58,4 @@ if st.button("📤 Dispatch Agent", key="dispatch_btn"):
     except Exception as e:
         add_log(f"❌ Dispatch error: {e}")
         st.error(f"Error: {e}")
+
